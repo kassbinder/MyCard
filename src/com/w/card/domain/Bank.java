@@ -6,7 +6,7 @@ import java.util.List;
 
 public class Bank implements Serializable {
 
-	private List<User> users = new ArrayList<>();
+	public List<User> users = new ArrayList<>();
 
 	public List<User> getUsers() {
 		return users;
