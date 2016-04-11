@@ -2,6 +2,7 @@ package com.w.card.domain.ui;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.Iterator;
 import java.util.Optional;
 
 import com.w.card.domain.Account;
@@ -18,8 +19,7 @@ public class CMDUserInterface implements UserInterface {
 		User currentUser = null;
 		Account currentAccount = null;
 
-		final BufferedReader bis = new BufferedReader(new InputStreamReader(
-				System.in));
+		final BufferedReader bis = new BufferedReader(new InputStreamReader(System.in));
 		System.out.println("Welcome!");
 
 		while (true) {
@@ -30,24 +30,29 @@ public class CMDUserInterface implements UserInterface {
 				System.exit(0);
 			} else if ("list".equals(command)) {
 				if (null == currentUser) {
-					bank.getUsers().stream()
-							.forEach(u -> System.out.println(u.getName()));
+					for (Iterator<User> it = bank.getUsers().iterator(); it.hasNext();) {
+						System.out.println(it.next().getName());
+					}
 				} else if (null == currentAccount) {
-					currentUser
-							.getAccounts()
-							.stream()
-							.forEach(
-									acc -> System.out.println(acc.getNumber()
-											+ " -> " + acc.calculateBanlance()));
+					for (Iterator<Account> ia = currentUser.getAccounts().iterator(); ia.hasNext();) {
+						Account acc = ia.next();
+						System.out.println(acc.getNumber() + "-" + acc.calculateBanlance());
+					}
+
 				}
 			} else if (command.startsWith("select ")) {
 				final String key = command.substring(7);
 				if (null == currentUser) {
-					Optional<User> user = bank.getUsers().stream()
-							.filter(u -> u.getName().equals(key)).findFirst();
-					if (user.isPresent()) {
-						currentUser = user.get();
-					} else {
+					Iterator<User> iu = bank.getUsers().iterator();
+					while (iu.hasNext()) {
+						User user = iu.next();
+						if (user.getName().equals(key)) {
+							currentUser = user;
+							break;
+						}
+					}
+
+					if (currentUser == null) {
 						currentUser = new User(key);
 						bank.getUsers().add(currentUser);
 					}
@@ -56,10 +61,15 @@ public class CMDUserInterface implements UserInterface {
 						currentUser = null;
 						continue;
 					}
-					Optional<Account> account = currentUser.getAccounts()
-							.stream()
-							.filter(acc -> acc.getNumber().equals(key))
-							.findFirst();
+					for (Iterator<Account> ia = currentUser.getAccounts().iterator(); ia.hasNext();) {
+						Account acc = ia.next();
+						if (acc.getNumber().equals(key)) {
+							currentAccount = acc;
+							break;
+						}
+					}
+					Optional<Account> account = currentUser.getAccounts().stream()
+							.filter(acc -> acc.getNumber().equals(key)).findFirst();
 					if (account.isPresent()) {
 						currentAccount = account.get();
 					} else {
