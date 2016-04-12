@@ -1,4 +1,4 @@
-package com.w.card.domain.ui;
+package com.w.card.ui;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

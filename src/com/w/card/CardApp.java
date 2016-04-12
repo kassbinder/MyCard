@@ -1,9 +1,9 @@
 package com.w.card;
 
-import com.w.card.domain.ui.CMDFluntUserInterface;
-import com.w.card.domain.ui.UserInterface;
 import com.w.card.store.JavaSerializationStore;
 import com.w.card.store.Store;
+import com.w.card.ui.CMDFluntUserInterface;
+import com.w.card.ui.UserInterface;
 
 public class CardApp {
 
