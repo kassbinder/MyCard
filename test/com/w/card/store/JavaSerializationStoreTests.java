@@ -26,8 +26,9 @@ public class JavaSerializationStoreTests {
 		User user = new User("test");
 		user.getAccounts().add(acc1);
 		bank.getUsers().add(user);
+		acc1.getItems().add(new Item(50));
 		
-		store.AddItem(acc1, new Item(50));
+		store.saveBank(bank);
 		
 		final Bank bank2 = store.loadBank();
 		assertEquals(1, bank2.getUsers().get(0).getAccounts().get(0).getItems().size());

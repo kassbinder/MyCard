@@ -3,7 +3,6 @@ package com.w.card.domain.ui;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Iterator;
-import java.util.Optional;
 
 import com.w.card.domain.Account;
 import com.w.card.domain.Bank;
@@ -39,9 +38,18 @@ public class CMDUserInterface implements UserInterface {
 						System.out.println(acc.getNumber() + "-" + acc.calculateBanlance());
 					}
 
+				} else {
+					for (Iterator<Item> ii = currentAccount.getItems().iterator(); ii.hasNext();) {
+						Item it = ii.next();
+						System.out.println(it.getAmount() + "-" + it.getCreatedAt());
+					}
+
 				}
 			} else if (command.startsWith("select ")) {
 				final String key = command.substring(7);
+				if (key.trim().length() == 0 || key.trim().equals("^")) {
+					continue;
+				}
 				if (null == currentUser) {
 					Iterator<User> iu = bank.getUsers().iterator();
 					while (iu.hasNext()) {
@@ -55,6 +63,7 @@ public class CMDUserInterface implements UserInterface {
 					if (currentUser == null) {
 						currentUser = new User(key);
 						bank.getUsers().add(currentUser);
+						store.saveBank(bank);
 					}
 				} else if (null == currentAccount) {
 					if ("^".equals(key)) {
@@ -66,15 +75,15 @@ public class CMDUserInterface implements UserInterface {
 						if (acc.getNumber().equals(key)) {
 							currentAccount = acc;
 							break;
+
 						}
 					}
-					Optional<Account> account = currentUser.getAccounts().stream()
-							.filter(acc -> acc.getNumber().equals(key)).findFirst();
-					if (account.isPresent()) {
-						currentAccount = account.get();
-					} else {
+					if (currentAccount == null) {
 						currentAccount = new Account(key);
 						currentUser.getAccounts().add(currentAccount);
+
+						store.saveBank(bank);
+
 					}
 				} else if ("^".equals(key)) {
 					currentAccount = null;
@@ -83,7 +92,8 @@ public class CMDUserInterface implements UserInterface {
 			} else if (command.startsWith("add ") && null != currentAccount) {
 				final float amount = Float.valueOf(command.substring(4));
 				final Item item = new Item(amount);
-				store.AddItem(currentAccount, item);
+				currentAccount.getItems().add(item);
+				store.saveBank(bank);
 				System.out.println("Balance: " + currentAccount.calculateBanlance());
 			}
 		}
