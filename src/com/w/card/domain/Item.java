@@ -9,8 +9,24 @@ public class Item implements Serializable {
 
 	private Date createdAt = new Date();
 
-	public Item(float amount) {
-		this.amount = amount;
+	private int id;
+
+	private int accountId;
+
+	public int getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(int accountId) {
+		this.accountId = accountId;
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
 	}
 
 	public float getAmount() {
