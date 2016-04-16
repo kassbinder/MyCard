@@ -5,9 +5,9 @@ import java.util.Date;
 
 public class Item implements Serializable {
 
-	private float amount;
+	private Float amount;
 
-	private Date createdAt = new Date();
+	private Date createdAt;
 
 	private int id;
 
@@ -29,11 +29,11 @@ public class Item implements Serializable {
 		this.id = id;
 	}
 
-	public float getAmount() {
+	public Float getAmount() {
 		return amount;
 	}
 
-	public void setAmount(float amount) {
+	public void setAmount(Float amount) {
 		this.amount = amount;
 	}
 

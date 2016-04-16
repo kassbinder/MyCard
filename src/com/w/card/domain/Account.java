@@ -26,10 +26,6 @@ public class Account implements Serializable {
 		this.id = id;
 	}
 
-	public Account(String number) {
-		this.number = number;
-	}
-
 	public String getNumber() {
 		return number;
 	}

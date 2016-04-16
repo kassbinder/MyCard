@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -51,11 +52,11 @@ public class MySQLDBStore implements Store {
 			System.out.println("不存在");
 			return false;
 		}
-		myConn.createStatement().executeUpdate(deleteSql);
+		int ifDelete = myConn.createStatement().executeUpdate(deleteSql);
 		System.out.println("已删除");
 		myRS.close();
 		myConn.close();
-		return true;
+		return ifDelete == 1;
 	}
 
 	// 定义一个add方法。用来判断条目是否存在，如不存在就创建一个。
@@ -68,10 +69,10 @@ public class MySQLDBStore implements Store {
 			System.out.println("已存在");
 			return false;
 		}
-		myConn.createStatement().executeUpdate(updateSql);
+		int ifInsert = myConn.createStatement().executeUpdate(updateSql);
 		myRS.close();
 		myConn.close();
-		return true;
+		return ifInsert == 1;
 	}
 
 	// 定义一个getBalance方法。用来计算余额。
@@ -79,16 +80,17 @@ public class MySQLDBStore implements Store {
 		Float balance = 0f;
 		Connection myConn = this.createConnection();
 		ResultSet myRS = this.getResultSet(myConn, countSql);
+		myRS.next();
 		int count = myRS.getInt("cnt");
-		if (count < 1) {
-			System.out.println("余额：" + balance);
+		if (count == 0) {
+			System.out.println("账号不存在！");
 			myRS.close();
 			myConn.close();
 			return balance;
 		}
 		myRS = this.getResultSet(myConn, amountSql);
 		while (myRS.next()) {
-			balance += myRS.getFloat("balance");
+			balance = myRS.getFloat("balance");
 		}
 		System.out.println("余额：" + balance);
 		myRS.close();
@@ -139,13 +141,19 @@ public class MySQLDBStore implements Store {
 		Connection myConn = this.createConnection();
 		this.printUi("账户", "账号");
 		List<Account> laccount = new ArrayList<>();
-		ResultSet myRS = this.getResultSet(myConn, "select * from User");
+		ResultSet myRS = this.getResultSet(myConn, "select id  From User WHERE name = '" + userName + "'");
+		if (!myRS.next()) {
+			System.out.println("用户: " + userName + "不存在");
+		}
+		int userId = myRS.getInt("id");
+		myRS = this.getResultSet(myConn, "select id,number From Account WHERE user_id = '" + userId + "'");
 		while (myRS.next()) {
 			String accountNumber = myRS.getString("number");
 			int accountID = myRS.getInt("id");
-			Account account = new Account(accountNumber);
+			Account account = new Account();
 			account.setId(accountID);
 			account.setNumber(accountNumber);
+			account.setUserId(userId);
 			laccount.add(account);
 			System.out.println(accountID + "\t" + accountNumber);
 
@@ -172,8 +180,8 @@ public class MySQLDBStore implements Store {
 		myConn.close();
 
 		if (userId != -1) {
-			return this.executeIfAbsent("SELECT count(*) as cnt FROM Account WHERE number = +'" + accountNumber + "'",
-					"INSERT INTO ACCOUNT (number, user_Id) VALUES ('" + accountNumber + "', " + userId + ")");
+			return this.executeIfAbsent("SELECT count(*) as cnt FROM Account WHERE number = '" + accountNumber + "'",
+					"INSERT INTO Account (number, user_Id) VALUES ('" + accountNumber + "', " + userId + ")");
 		}
 
 		return false;
@@ -181,7 +189,7 @@ public class MySQLDBStore implements Store {
 
 	@Override
 	public Boolean removeAccount(String accountNumber) throws Exception {
-		return this.executeIfDelete("select count(number) as cnt from Account where name = '" + accountNumber + "'",
+		return this.executeIfDelete("select count(number) as cnt from Account where number = '" + accountNumber + "'",
 				"delete from Account where number ='" + accountNumber + "'");
 	}
 
@@ -189,29 +197,38 @@ public class MySQLDBStore implements Store {
 	public List<Item> listItems(String accountNumber) throws Exception {
 		// 判断有没有这个账号，有就显示Item,没有就打印一条信息。
 		Connection myConn = this.createConnection();
-		ResultSet accountIdRS = this.getResultSet(myConn, "select id from User where name ='" + accountNumber + "'");
-		int accountId = -1;
-		while (accountIdRS.next()) {
-			accountId = accountIdRS.getInt("id");
+		ResultSet rs = this.getResultSet(myConn,
+				"select count(id) as cnt from Account where number ='" + accountNumber + "'");
+		rs.next();
+		int sameAccount = rs.getInt("cnt");
+		if (sameAccount == 0) {
+			System.out.println("该账号不存在");
 		}
-
 		System.out.println("-----------------");
 		System.out.println("所有明细");
 		System.out.println("-----------------");
 		System.out.println("账号" + "\t" + "存取" + "\t" + "时间");
 		System.out.println("-----------------");
+		ResultSet accountIdRS = this.getResultSet(myConn,
+				"select * from Account where number ='" + accountNumber + "'");
+		int accountId = -1;
+		while (accountIdRS.next()) {
+			accountId = accountIdRS.getInt("id");
+		}
 		List<Item> litem = new ArrayList<>();
-
-		ResultSet myRS = this.getResultSet(myConn, "select * from Account where account_id = '" + accountId + "'");
+		ResultSet myRS = this.getResultSet(myConn,
+				"select id,createdAt,amount from Item where account_id = " + accountId);
 		while (myRS.next()) {
-
-			int accountNm = accountId;
 			Item item = new Item();
-			Float itemAmount = item.getAmount();
-			Date itemCreatedAt = item.getCreatedAt();
+			int itemId = myRS.getInt("id");
+			item.setId(itemId);
+			item.setAccountId(accountId);
+			Float amount = myRS.getFloat("amount");
+			item.setAmount(amount);
+			Date createdAt = myRS.getDate("createdAt");
+			item.setCreatedAt(createdAt);
 			litem.add(item);
-			System.out.println(accountNm + "\t" + itemAmount + "\t" + itemCreatedAt);
-
+			System.out.println(accountNumber + "\t" + amount + "\t" + createdAt);
 		}
 		myRS.close();
 		myConn.close();
@@ -223,86 +240,62 @@ public class MySQLDBStore implements Store {
 	public Boolean addItem(String accountNumber, float amount) throws Exception {
 		// 先判断该账号是否存在，如果不存在，就报错。存在，就存取特定的金额。
 		Connection myConn = this.createConnection();
-		ResultSet accountRS = this.getResultSet(myConn, "select * from Account where number ='" + accountNumber + "'");
-		if (!accountRS.next()) {
-			System.out.println("存取失败！该账号不存在。");
+		ResultSet rs = this.getResultSet(myConn,
+				"select count(id) as cnt from Account where number ='" + accountNumber + "'");
+		rs.next();
+		int sameAccount = rs.getInt("cnt");
+		if (sameAccount == 0) {
+			System.out.println("该账号不存在");
+			rs.close();
+			myConn.close();
 			return false;
 		}
+		ResultSet accountIdRS = this.getResultSet(myConn,
+				"select * from Account where number ='" + accountNumber + "'");
 		int accountId = -1;
-		while (accountRS.next()) {
-			accountId = accountRS.getInt("id");
-		}
-		String sql = "insert into Item (account_id,amount) values (" + accountId + "," + amount + ")";
-		myConn.createStatement().executeUpdate(sql);
-		System.out.println("账号：" + accountNumber + "存入了：" + amount);
+		accountIdRS.next();
+		accountId = accountIdRS.getInt("id");
+		Item item = new Item();
+		Date d = new Date();
+		Timestamp ts = new Timestamp(d.getTime());
+		String addItem = "INSERT INTO Item (account_id,amount,createdAt) VALUES (" + accountId + "," + amount + ",'"
+				+ ts + "')";
+		myConn.createStatement().executeUpdate(addItem);
+		System.out.println("账号：" + accountNumber + "存取了：" + amount);
+		accountIdRS.close();
+		myConn.close();
 		return true;
 	}
 
 	@Override
 	public Boolean removeItem(int itemID) throws Exception {
-		return this.executeIfDelete("select count(id) as cnt from Item where item_id = '" + itemID + "'",
-				"delete from Item where item_id ='" + itemID + "'");
+		return this.executeIfDelete("select count(id) as cnt from Item where id = " + itemID,
+				"delete from Item where id =" + itemID);
 	}
 
 	@Override
 	public Float accountBalance(int accountID) throws Exception {
-		// Float balance = 0f;
-		// Connection myConn = this.createConnection();
-		// ResultSet myRS = this.getResultSet(myConn,
-		// "select count(id) as cnt from Account where id ='" + accountID +
-		// "'");
-		// int count = myRS.getInt("cnt");
-		// if (count > 0) {
-		// myRS = this.getResultSet(myConn, "SELECT sum(amount) as balance FROM
-		// Item WHERE account_id =" + accountID);
-		// while (myRS.next()) {
-		//
-		// balance += myRS.getFloat("balance");
-		// }
-		// System.out.println("余额：" + balance);
-		// return balance;
-		// }
-		// System.out.println("余额：" + balance);
-		// return balance;
-		return this.getBalance("select count(id) as cnt from Account where id ='" + accountID + "'",
+
+		return this.getBalance("select count(id) as cnt from Account where id =" + accountID,
 				"SELECT sum(amount) as balance FROM Item WHERE account_id =" + accountID);
 	}
 
 	@Override
 	public Float userBalance(int userID) throws Exception {
-		// Float balance = 0f;
-		// Connection myConn = this.createConnection();
-		// ResultSet myRS = this.getResultSet(myConn,
-		// "select count(id) as cnt from Account where user_id ='" + userID +
-		// "'");
-		// int count = myRS.getInt("cnt");
-		// if (count > 0) {
-		// myRS = this.getResultSet(myConn, " select id from Account where
-		// user_id = " + userID);
-		// while (myRS.next()) {
-		// int accountId = myRS.getInt("id");
-		// myRS = this.getResultSet(myConn,
-		// "SELECT sum(amount) as balance FROM Item WHERE account_id =" +
-		// accountId);
-		// balance += myRS.getFloat("balance");
-		// }
-		// System.out.println("余额：" + balance);
-		// return balance;
-		// }
-		// System.out.println("余额: " + balance);
-		// myRS.close();
-		// myConn.close();
-		// return balance;
+		Float userBalance = 0f;
+		Float accountBalance = 0f;
+		Float f;
 		Connection myConn = this.createConnection();
 		ResultSet myRS = this.getResultSet(myConn, " select id from Account where user_id = " + userID);
 		int accountId = -1;
 		while (myRS.next()) {
 			accountId = myRS.getInt("id");
+			accountBalance = this.accountBalance(accountId);
+			f = accountBalance;
+			userBalance += accountBalance;
 		}
 		myRS.close();
 		myConn.close();
-		return this.getBalance("select count(id) as cnt from Account where user_id ='" + userID + "'",
-				"SELECT sum(amount) as balance FROM Item WHERE account_id =" + accountId);
 
 	}
 
