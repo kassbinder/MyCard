@@ -10,16 +10,26 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.w.card.domain.Account;
 import com.w.card.domain.Item;
 import com.w.card.domain.User;
 
 public class MySQLDBStore implements Store {
+	ComboPooledDataSource cpds;
 
 	public MySQLDBStore() {
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
+			// Class.forName("com.mysql.jdbc.Driver");
+			cpds = new ComboPooledDataSource();
+			cpds.setDriverClass("com.mysql.jdbc.Driver");
+			cpds.setJdbcUrl("jdbc:mysql://192.168.0.115:3306/MyCard");
+			cpds.setUser("root");
+			cpds.setPassword("root");
+			cpds.setMinPoolSize(5);
+			cpds.setAcquireIncrement(5);
+			cpds.setMaxPoolSize(20);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -35,6 +45,7 @@ public class MySQLDBStore implements Store {
 
 	// 定义一个方法来连接数据库，接收命令。
 	private ResultSet getResultSet(Connection conn, String sql) throws Exception {
+
 		Connection myConn = conn;
 		Statement statement = myConn.createStatement();
 		String mySQL = sql;
@@ -251,20 +262,19 @@ public class MySQLDBStore implements Store {
 			return false;
 		}
 		ResultSet accountIdRS = this.getResultSet(myConn,
-				"select * from Account where number ='" + accountNumber + "'");
+				"select id from Account where number ='" + accountNumber + "'");
 		int accountId = -1;
 		accountIdRS.next();
 		accountId = accountIdRS.getInt("id");
-		Item item = new Item();
 		Date d = new Date();
 		Timestamp ts = new Timestamp(d.getTime());
 		String addItem = "INSERT INTO Item (account_id,amount,createdAt) VALUES (" + accountId + "," + amount + ",'"
 				+ ts + "')";
-		myConn.createStatement().executeUpdate(addItem);
+		int ifAdd = myConn.createStatement().executeUpdate(addItem);
 		System.out.println("账号：" + accountNumber + "存取了：" + amount);
 		accountIdRS.close();
 		myConn.close();
-		return true;
+		return  ifAdd== 1;
 	}
 
 	@Override
@@ -281,27 +291,16 @@ public class MySQLDBStore implements Store {
 	}
 
 	@Override
-	public Float userBalance(int userID) throws Exception {
-		Float userBalance = 0f;
-		Float accountBalance = 0f;
-		Float f;
-		Connection myConn = this.createConnection();
-		ResultSet myRS = this.getResultSet(myConn, " select id from Account where user_id = " + userID);
-		int accountId = -1;
-		while (myRS.next()) {
-			accountId = myRS.getInt("id");
-			accountBalance = this.accountBalance(accountId);
-			f = accountBalance;
-			userBalance += accountBalance;
-		}
-		myRS.close();
-		myConn.close();
+	public Float userBalance(String userName) throws Exception {
+		return this.getBalance(" select count(id) as cnt from User where name = '" + userName + "'",
+				"SELECT sum(amount) as balance FROM Item,Account,User WHERE name = '" + userName
+						+ "' and User.id = Account.user_id and Item.account_id = Account.id");
 
 	}
 
 	private Connection createConnection() {
 		try {
-			return DriverManager.getConnection("jdbc:mysql://192.168.0.115:3306/MyCard", "root", "root");
+			return cpds.getConnection();
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}

@@ -218,17 +218,13 @@ public class TestMySQLDBStore {
 		String user = "I";
 		String account = "I001";
 		Float amount = 666.66f;
-		List<Item> lItem = msql.listItems(account);
-		assertEquals(0, lItem.size());
 		msql.addAccount(user, account);
-		List<Account> lAccount = msql.listAccounts(user);
-		assertEquals(1, lAccount.size());
-		msql.addItem(user, amount);
+		msql.addItem(account, amount);
+		List<Item> lItem = msql.listItems(account);
 		assertEquals(1, lItem.size());
 		int itemId = lItem.get(0).getId();
-		System.out.println("" + itemId);
 		msql.removeItem(itemId);
-		assertEquals(0, lItem.size());
+		assertTrue(msql.listItems(account).isEmpty());
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
 		statement.executeUpdate("delete from Item");
@@ -275,7 +271,10 @@ public class TestMySQLDBStore {
 		msql.addItem(account2, balance2);
 		List<User> lUser = msql.listUsers();
 		int userId = lUser.get(0).getId();
-		assertEquals(userBalance, msql.userBalance(userId));
+		assertEquals(userBalance, msql.userBalance(user));
+		statement.executeUpdate("delete from User");
+		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
 
 	}
 

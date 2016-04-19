@@ -28,6 +28,6 @@ public interface Store {
 
 	public Float accountBalance(int accountID) throws Exception;
 
-	public Float userBalance(int userID) throws Exception;
+	public Float userBalance(String userName) throws Exception;
 
 }
