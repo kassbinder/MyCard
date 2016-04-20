@@ -18,13 +18,13 @@ public interface Store {
 
 	public Boolean addAccount(String userName, String accountNumber) throws Exception;
 
-	public Boolean removeAccount(String accountNumber) throws Exception;
+	public Boolean removeAccount(String userName, String accountNumber) throws Exception;
+
+	public Boolean transfer(String accountNumber1, String accountNumber2, Float amount) throws Exception;
 
 	public List<Item> listItems(String accountNumber) throws Exception;
 
 	public Boolean addItem(String accountNumber, float amount) throws Exception;
-
-	public Boolean removeItem(int itemID) throws Exception;
 
 	public Float accountBalance(int accountID) throws Exception;
 

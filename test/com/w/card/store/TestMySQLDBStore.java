@@ -77,6 +77,9 @@ public class TestMySQLDBStore {
 	@Test
 	public void testRemoveUser() throws Exception {
 		String userName = "UserB";
+		String user2 = "UserC";
+		String cAccount = "C001";
+		Float amount = 200.00f;
 		Statement statement = conn.createStatement();
 		String delete = "delete from User";
 		statement.executeUpdate(delete);
@@ -85,7 +88,12 @@ public class TestMySQLDBStore {
 		assertEquals(true, msql.removeUser(userName));
 		String sql = ("delete from User where name = '" + userName + "'");
 		assertEquals(0, statement.executeUpdate(sql));
-		statement.executeUpdate(delete);
+		msql.addAccount(user2, cAccount);
+		msql.addItem(cAccount, amount);
+		assertFalse(msql.removeUser(user2));
+		statement.executeUpdate("delete from User");
+		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
 	}
 
 	@Test
@@ -144,17 +152,48 @@ public class TestMySQLDBStore {
 		String user = "UserF";
 		int userId = 1;
 		String account = "F001";
+		String user2 = "UserG";
+		String account2 = "G001";
+		Float amount = 3.00f;
 		Statement statement = conn.createStatement();
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
 		msql.addAccount(user, account);
-		msql.removeAccount(account);
+		msql.removeAccount(user, account);
 		List<Account> lAccount = msql.listAccounts(user);
 		List<User> lUser = msql.listUsers();
 		assertEquals(true, lAccount.isEmpty());
 		assertEquals(false, lUser.isEmpty());
+		msql.addAccount(user2, account2);
+		msql.addItem(user2, amount);
+		assertFalse(msql.removeAccount(account2, user2));
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
+	}
+
+	@Test
+	public void testTransfer() throws Exception {
+		String user = "UserA";
+		String account = "A001";
+		Float amount = 1000.00f;
+		String user2 = "UserB";
+		String account2 = "B001";
+		Statement statement = conn.createStatement();
+		statement.executeUpdate("delete from User");
+		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
+		msql.addAccount(user, account);
+		msql.addAccount(user2, account2);
+		msql.addItem(account, amount);
+		msql.transfer(account, account2, amount);
+		Float user1B = msql.userBalance(user);
+		assertTrue(user1B == 0f);
+		Float user2B = msql.userBalance(user2);
+		assertEquals(amount, user2B);
+		statement.executeUpdate("delete from User");
+		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
 	}
 
 	@Test
@@ -204,27 +243,6 @@ public class TestMySQLDBStore {
 		List<Item> lItem = msql.listItems(account);
 		assertEquals(1, lItem.size());
 		assertEquals(amount, lItem.get(0).getAmount());
-		statement.executeUpdate("delete from User");
-		statement.executeUpdate("delete from Account");
-		statement.executeUpdate("delete from Item");
-	}
-
-	@Test
-	public void testRemoveItem() throws Exception {
-		Statement statement = conn.createStatement();
-		statement.executeUpdate("delete from User");
-		statement.executeUpdate("delete from Account");
-		statement.executeUpdate("delete from Item");
-		String user = "I";
-		String account = "I001";
-		Float amount = 666.66f;
-		msql.addAccount(user, account);
-		msql.addItem(account, amount);
-		List<Item> lItem = msql.listItems(account);
-		assertEquals(1, lItem.size());
-		int itemId = lItem.get(0).getId();
-		msql.removeItem(itemId);
-		assertTrue(msql.listItems(account).isEmpty());
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
 		statement.executeUpdate("delete from Item");

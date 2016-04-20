@@ -53,8 +53,8 @@ public class MySQLDBStore implements Store {
 		return rs;
 	}
 
-	// 定义一个remove方法。用来判断条目是否存在，如果不存在就返回，存在就删除。
-	private boolean executeIfDelete(final String countSql, final String deleteSql) throws Exception {
+	// 定义一个remove方法。先判断条目是否存在，如果不存在就返回，存在的话看余额是否为0，如果是零，就删除，非零就返回。
+	private boolean remove(final String countSql, final String deleteSql, String userName) throws Exception {
 		Connection myConn = this.createConnection();
 		ResultSet myRS = this.getResultSet(myConn, countSql);
 		myRS.next();
@@ -63,14 +63,20 @@ public class MySQLDBStore implements Store {
 			System.out.println("不存在");
 			return false;
 		}
-		int ifDelete = myConn.createStatement().executeUpdate(deleteSql);
-		System.out.println("已删除");
-		myRS.close();
-		myConn.close();
-		return ifDelete == 1;
+
+		Float userBalance = this.userBalance(userName);
+		if (userBalance == 0) {
+			int ifDelete = myConn.createStatement().executeUpdate(deleteSql);
+			System.out.println("已删除");
+			myRS.close();
+			myConn.close();
+			return ifDelete == 1;
+		}
+		System.out.println("余额不为0，不能删除");
+		return false;
 	}
 
-	// 定义一个add方法。用来判断条目是否存在，如不存在就创建一个。
+	// 定义一个add方法。用来判断条目是否存在，如果存在就返回，不存在就创建一个。
 	private boolean executeIfAbsent(final String countSql, final String updateSql) throws Exception {
 		Connection myConn = this.createConnection();
 		ResultSet myRS = this.getResultSet(myConn, countSql);
@@ -142,8 +148,8 @@ public class MySQLDBStore implements Store {
 
 	@Override
 	public Boolean removeUser(String userName) throws Exception {
-		return this.executeIfDelete("select count(name) as cnt from User where name = '" + userName + "'",
-				"delete from User where name ='" + userName + "'");
+		return this.remove("select count(name) as cnt from User where name = '" + userName + "'",
+				"delete from User where name ='" + userName + "'", userName);
 	}
 
 	@Override
@@ -199,9 +205,31 @@ public class MySQLDBStore implements Store {
 	}
 
 	@Override
-	public Boolean removeAccount(String accountNumber) throws Exception {
-		return this.executeIfDelete("select count(number) as cnt from Account where number = '" + accountNumber + "'",
-				"delete from Account where number ='" + accountNumber + "'");
+	public Boolean removeAccount(String accountNumber, String userName) throws Exception {
+		return this.remove("select count(number) as cnt from Account where number = '" + accountNumber + "'",
+				"delete from Account where number ='" + accountNumber + "'", userName);
+	}
+
+	@Override
+	public Boolean transfer(String accountNumber1, String accountNumber2, Float amount) throws Exception {
+		// TODO Auto-generated method stub
+		Connection myConn = this.createConnection();
+		ResultSet rs = this.getResultSet(myConn, "select id from Account where number = '" + accountNumber1 + "'");
+		rs.next();
+		int account1Id = rs.getInt("id");
+		Float account1Balance = this.accountBalance(account1Id);
+		if (amount > 0 && amount <= account1Balance) {
+			this.addItem(accountNumber1, -(amount));
+			this.addItem(accountNumber2, amount);
+			System.out.println("转账成功！");
+			rs.close();
+			myConn.close();
+			return true;
+		}
+		System.out.println("您的账户余额不足，请选择别的账户");
+		rs.close();
+		myConn.close();
+		return false;
 	}
 
 	@Override
@@ -274,13 +302,7 @@ public class MySQLDBStore implements Store {
 		System.out.println("账号：" + accountNumber + "存取了：" + amount);
 		accountIdRS.close();
 		myConn.close();
-		return  ifAdd== 1;
-	}
-
-	@Override
-	public Boolean removeItem(int itemID) throws Exception {
-		return this.executeIfDelete("select count(id) as cnt from Item where id = " + itemID,
-				"delete from Item where id =" + itemID);
+		return ifAdd == 1;
 	}
 
 	@Override
