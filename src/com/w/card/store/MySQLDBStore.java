@@ -1,38 +1,18 @@
 package com.w.card.store;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.w.card.domain.Account;
 import com.w.card.domain.Item;
 import com.w.card.domain.User;
 
 public class MySQLDBStore implements Store {
-	ComboPooledDataSource cpds;
-
-	public MySQLDBStore() {
-		try {
-			// Class.forName("com.mysql.jdbc.Driver");
-			cpds = new ComboPooledDataSource();
-			cpds.setDriverClass("com.mysql.jdbc.Driver");
-			cpds.setJdbcUrl("jdbc:mysql://192.168.0.115:3306/MyCard");
-			cpds.setUser("root");
-			cpds.setPassword("root");
-			cpds.setMinPoolSize(5);
-			cpds.setAcquireIncrement(5);
-			cpds.setMaxPoolSize(20);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 
 	// 定义一个打印方法。
 	private void printUi(String label1, String label2) {
@@ -158,15 +138,18 @@ public class MySQLDBStore implements Store {
 		Connection myConn = this.createConnection();
 		this.printUi("账户", "账号");
 		List<Account> laccount = new ArrayList<>();
-		ResultSet myRS = this.getResultSet(myConn, "select id  From User WHERE name = '" + userName + "'");
-		if (!myRS.next()) {
+		ResultSet rs = this.getResultSet(myConn, "select count(id) as cnt  From User WHERE name = '" + userName + "'");
+		rs.next();
+		if (rs.getInt("cnt") == 0) {
 			System.out.println("用户: " + userName + "不存在");
 		}
-		int userId = myRS.getInt("id");
-		myRS = this.getResultSet(myConn, "select id,number From Account WHERE user_id = '" + userId + "'");
-		while (myRS.next()) {
-			String accountNumber = myRS.getString("number");
-			int accountID = myRS.getInt("id");
+		ResultSet userIdRs = this.getResultSet(myConn, "select id From User WHERE name = '" + userName + "'");
+		userIdRs.next();
+		int userId = userIdRs.getInt("id");
+		ResultSet accountRs = this.getResultSet(myConn, "SELECT id,number FROM Account WHERE user_id =" + userId);
+		while (accountRs.next()) {
+			String accountNumber = accountRs.getString("number");
+			int accountID = accountRs.getInt("id");
 			Account account = new Account();
 			account.setId(accountID);
 			account.setNumber(accountNumber);
@@ -175,7 +158,7 @@ public class MySQLDBStore implements Store {
 			System.out.println(accountID + "\t" + accountNumber);
 
 		}
-		myRS.close();
+		accountRs.close();
 		myConn.close();
 		return laccount;
 
@@ -321,11 +304,7 @@ public class MySQLDBStore implements Store {
 	}
 
 	private Connection createConnection() {
-		try {
-			return cpds.getConnection();
-		} catch (SQLException e) {
-			throw new RuntimeException(e);
-		}
+		return DBConnection.createConnection();
 	}
 
 }
