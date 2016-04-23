@@ -18,7 +18,7 @@ public interface Store {
 
 	public Boolean addAccount(String userName, String accountNumber) throws Exception;
 
-	public Boolean removeAccount(String userName, String accountNumber) throws Exception;
+	public Boolean removeAccount(int accountID) throws Exception;
 
 	public Boolean transfer(String accountNumber1, String accountNumber2, Float amount) throws Exception;
 

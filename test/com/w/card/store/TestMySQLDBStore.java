@@ -76,20 +76,18 @@ public class TestMySQLDBStore {
 
 	@Test
 	public void testRemoveUser() throws Exception {
-		String userName = "UserB";
-		String user2 = "UserC";
-		String cAccount = "C001";
-		Float amount = 200.00f;
 		Statement statement = conn.createStatement();
-		String delete = "delete from User";
-		statement.executeUpdate(delete);
-		assertEquals(false, msql.removeUser(userName));
-		statement.executeUpdate("insert into User (name) values('" + userName + "')");
-		assertEquals(true, msql.removeUser(userName));
-		String sql = ("delete from User where name = '" + userName + "'");
-		assertEquals(0, statement.executeUpdate(sql));
-		msql.addAccount(user2, cAccount);
-		msql.addItem(cAccount, amount);
+		statement.executeUpdate("delete from User");
+		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
+		String user = "UserB";
+		String user2 = "UserC";
+		String account2a = "C001";
+		Float amount2a = 200.00f;
+		msql.addUser(user);
+		assertTrue(msql.removeUser(user));
+		msql.addAccount(user2, account2a);
+		msql.addItem(account2a, amount2a);
 		assertFalse(msql.removeUser(user2));
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
@@ -149,28 +147,35 @@ public class TestMySQLDBStore {
 
 	@Test
 	public void testRemoveAccount() throws Exception {
-		String user = "UserF";
-		int userId = 1;
-		String account = "F001";
-		String user2 = "UserG";
-		String account2 = "G001";
-		Float amount = 3.00f;
 		Statement statement = conn.createStatement();
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
+		statement.executeUpdate("delete from Item");
+		String user = "UserF";
+		String account = "F001";
+		String user2 = "UserG";
+		String accountA = "G001";
+		Float amountA = 3.00f;
 		msql.addAccount(user, account);
 		List<Account> lAccount = msql.listAccounts(user);
-		assertFalse(lAccount.isEmpty());
-		msql.removeAccount(account, user);
+		int accountId = lAccount.get(0).getId();
+		assertTrue(msql.removeAccount(accountId));
 		List<Account> lAccount1 = msql.listAccounts(user);
-		assertEquals(0, lAccount1.size());
-		msql.addAccount(user2, account2);
-		msql.addItem(account2, amount);
+		assertTrue(lAccount1.isEmpty());
+		msql.addAccount(user2, accountA);
+		msql.addItem(accountA, amountA);
 		List<Account> lAccount2 = msql.listAccounts(user2);
-		assertEquals(1, lAccount2.size());
-		msql.removeAccount(account2, user2);
-		List<Account> lAccount2A = msql.listAccounts(user2);
-		assertFalse(lAccount2A.isEmpty());
+		int accountAId = lAccount2.get(0).getId();
+		assertFalse(msql.removeAccount(accountAId));
+		String accountB = "G002";
+		Float amountB = 0.00f;
+		msql.addAccount(user2, accountB);
+		msql.addItem(accountB, amountB);
+		List<Account> lAccount3 = msql.listAccounts(user2);
+		int accountBId = lAccount3.get(1).getId();
+		assertTrue(msql.removeAccount(accountBId));
+		List<Account> lAccount4 = msql.listAccounts(user2);
+		assertEquals(1, lAccount4.size());
 		statement.executeUpdate("delete from User");
 		statement.executeUpdate("delete from Account");
 		statement.executeUpdate("delete from Item");
