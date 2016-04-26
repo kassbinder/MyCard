@@ -93,21 +93,12 @@ public class MySQLDBStore implements Store {
 	private Float getBalance(final String countSql, final String amountSql) throws Exception {
 		Float balance = 0f;
 		Connection myConn = this.createConnection();
-		ResultSet myRS = this.getResultSet(myConn, countSql);
-		myRS.next();
-		int count = myRS.getInt("cnt");
-		if (count == 0) {
-			System.out.println("账号不存在！");
-			myRS.close();
-			myConn.close();
-			return balance;
-		}
-		myRS = this.getResultSet(myConn, amountSql);
-		while (myRS.next()) {
-			balance = myRS.getFloat("balance");
+		ResultSet rs = this.list(countSql, amountSql, myConn);
+		while (rs.next()) {
+			balance = rs.getFloat("balance");
 		}
 		System.out.println("余额：" + balance);
-		myRS.close();
+		rs.close();
 		myConn.close();
 		return balance;
 
@@ -165,13 +156,13 @@ public class MySQLDBStore implements Store {
 		this.printUi("账户", "账号");
 		List<Account> laccount = new ArrayList<>();
 		ResultSet myRs = this.list("select count(id) as cnt  From User WHERE name = '" + userName + "'",
-				"select id From User WHERE name = '" + userName + "'", myConn);
-		myRs.next();
-		int userId = myRs.getInt("id");
-		ResultSet accountRs = this.getResultSet(myConn, "SELECT id,number FROM Account WHERE user_id =" + userId);
-		while (accountRs.next()) {
-			String accountNumber = accountRs.getString("number");
-			int accountID = accountRs.getInt("id");
+				"SELECT User.id ,Account.id,Account.number FROM Account,User WHERE User.name = '" + userName
+						+ "' and Account.user_id = User.id",
+				myConn);
+		while (myRs.next()) {
+			String accountNumber = myRs.getString("number");
+			int userId = myRs.getInt("User.id");
+			int accountID = myRs.getInt("Account.id");
 			Account account = new Account();
 			account.setId(accountID);
 			account.setNumber(accountNumber);
@@ -180,7 +171,7 @@ public class MySQLDBStore implements Store {
 			System.out.println(accountID + "\t" + accountNumber);
 
 		}
-		accountRs.close();
+		myRs.close();
 		myConn.close();
 		return laccount;
 
@@ -190,7 +181,6 @@ public class MySQLDBStore implements Store {
 	public Boolean addAccount(String userName, String accountNumber) throws Exception {
 		// 先要判断数据库中有没有这个User,如果没有就先创建一个User,然后再创建账户。
 		this.addUser(userName);
-
 		Connection myConn = this.createConnection();
 		int userId = -1;
 		ResultSet userIdRS = this.getResultSet(myConn, "select id from User where name ='" + userName + "'");
@@ -200,12 +190,10 @@ public class MySQLDBStore implements Store {
 		System.out.println("账户:" + accountNumber + "已创建");
 		userIdRS.close();
 		myConn.close();
-
 		if (userId != -1) {
 			return this.executeIfAbsent("SELECT count(*) as cnt FROM Account WHERE number = '" + accountNumber + "'",
 					"INSERT INTO Account (number, user_Id) VALUES ('" + accountNumber + "', " + userId + ")");
 		}
-
 		return false;
 	}
 
@@ -245,27 +233,24 @@ public class MySQLDBStore implements Store {
 		Connection myConn = this.createConnection();
 		this.printUi("存取", "时间");
 		ResultSet myRs = this.list("select count(id) as cnt from Account where number ='" + accountNumber + "'",
-				"select * from Account where number ='" + accountNumber + "'", myConn);
-		int accountId = -1;
-		while (myRs.next()) {
-			accountId = myRs.getInt("id");
-		}
+				"SELECT Account.id,Item.id,Item.createdAt,Item.amount FROM Account,Item WHERE Account.number = '"
+						+ accountNumber + "' AND Item.account_id = Account.id",
+				myConn);
 		List<Item> litem = new ArrayList<>();
-		ResultSet itemRS = this.getResultSet(myConn,
-				"select id,createdAt,amount from Item where account_id = " + accountId);
-		while (itemRS.next()) {
+		while (myRs.next()) {
+			int accountId = myRs.getInt("Account.id");
 			Item item = new Item();
-			int itemId = itemRS.getInt("id");
+			int itemId = myRs.getInt("Item.id");
 			item.setId(itemId);
 			item.setAccountId(accountId);
-			Float amount = itemRS.getFloat("amount");
+			Float amount = myRs.getFloat("Item.amount");
 			item.setAmount(amount);
-			Date createdAt = itemRS.getDate("createdAt");
+			Date createdAt = myRs.getDate("Item.createdAt");
 			item.setCreatedAt(createdAt);
 			litem.add(item);
 			System.out.println(amount + "\t" + createdAt);
 		}
-		itemRS.close();
+		myRs.close();
 		myRs.close();
 		myConn.close();
 		return litem;
@@ -276,30 +261,21 @@ public class MySQLDBStore implements Store {
 	public Boolean addItem(String accountNumber, float amount) throws Exception {
 		// 先判断该账号是否存在，如果不存在，就报错。存在，就存取特定的金额。
 		Connection myConn = this.createConnection();
-		ResultSet rs = this.getResultSet(myConn,
-				"select count(id) as cnt from Account where number ='" + accountNumber + "'");
-		rs.next();
-		int sameAccount = rs.getInt("cnt");
-		if (sameAccount == 0) {
-			System.out.println("该账号不存在");
-			rs.close();
-			myConn.close();
-			return false;
-		}
-		ResultSet accountIdRS = this.getResultSet(myConn,
-				"select id from Account where number ='" + accountNumber + "'");
+		ResultSet rs = this.list("select count(id) as cnt from Account where number ='" + accountNumber + "'",
+				"select id from Account where number ='" + accountNumber + "'", myConn);
 		int accountId = -1;
-		accountIdRS.next();
-		accountId = accountIdRS.getInt("id");
+		rs.next();
+		accountId = rs.getInt("id");
 		Date d = new Date();
 		Timestamp ts = new Timestamp(d.getTime());
 		String addItem = "INSERT INTO Item (account_id,amount,createdAt) VALUES (" + accountId + "," + amount + ",'"
 				+ ts + "')";
 		int ifAdd = myConn.createStatement().executeUpdate(addItem);
 		System.out.println("账号：" + accountNumber + "存取了：" + amount);
-		accountIdRS.close();
+		rs.close();
 		myConn.close();
 		return ifAdd == 1;
+
 	}
 
 	@Override

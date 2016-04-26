@@ -158,7 +158,10 @@ public class TestMySQLDBStore {
 		Float amountA = 3.00f;
 		msql.addAccount(user, account);
 		List<Account> lAccount = msql.listAccounts(user);
+		assertEquals(1, lAccount.size());
 		int accountId = lAccount.get(0).getId();
+		System.out.println("accountId «£∫" + accountId);
+		System.out.println("’Àªß”‡∂Ó «£∫" + msql.accountBalance(accountId));
 		assertTrue(msql.removeAccount(accountId));
 		List<Account> lAccount1 = msql.listAccounts(user);
 		assertTrue(lAccount1.isEmpty());
