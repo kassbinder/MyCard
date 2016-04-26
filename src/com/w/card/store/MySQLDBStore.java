@@ -110,8 +110,13 @@ public class MySQLDBStore implements Store {
 		this.printUi("用户", "姓名");
 		List<User> luser = new ArrayList<>();
 		ResultSet myRS = this.list(null, "select * from User", myConn);
+		if (myRS == null) {
+			System.out.println("当前没有用户！");
+			myRS.close();
+			myConn.close();
+			return null;
+		}
 		while (myRS.next()) {
-
 			String userName = myRS.getString("name");
 			int userID = myRS.getInt("id");
 			User user = new User();
@@ -159,8 +164,14 @@ public class MySQLDBStore implements Store {
 				"SELECT User.id ,Account.id,Account.number FROM Account,User WHERE User.name = '" + userName
 						+ "' and Account.user_id = User.id",
 				myConn);
+		if (myRs == null) {
+			System.out.println("该用户尚未有账户！");
+			myRs.close();
+			myConn.close();
+			return null;
+		}
 		while (myRs.next()) {
-			String accountNumber = myRs.getString("number");
+			String accountNumber = myRs.getString("Account.number");
 			int userId = myRs.getInt("User.id");
 			int accountID = myRs.getInt("Account.id");
 			Account account = new Account();
@@ -236,6 +247,12 @@ public class MySQLDBStore implements Store {
 				"SELECT Account.id,Item.id,Item.createdAt,Item.amount FROM Account,Item WHERE Account.number = '"
 						+ accountNumber + "' AND Item.account_id = Account.id",
 				myConn);
+		if (myRs == null) {
+			System.out.println("该账户不存在！");
+			myRs.close();
+			myConn.close();
+			return null;
+		}
 		List<Item> litem = new ArrayList<>();
 		while (myRs.next()) {
 			int accountId = myRs.getInt("Account.id");
